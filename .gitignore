@@ -1,7 +1,7 @@
 # *.pth
 # processed_data/
 __pycache__/
-# .ipynb_checkpoints/
+.ipynb_checkpoints/
 # *.npy
 .DS_Store
 
@@ -14,7 +14,7 @@ __pycache__/
 # *.avi
 # *.mkv
 
-# .venv/
+.venv/
 # .ipynb_checkpoints/
 # .DS_Store
 
