@@ -1,21 +1,50 @@
-# Logs
-*.log
+# 1. Dataset & Large Video Files
+# The INCLUDE dataset consists of thousands of videos (~6.85 GiB)
+# Do NOT upload raw video files to GitHub.
+*.mp4
+*.MOV
+*.avi
 
-# Model weights
-*.pth
-
-# Generated data
-processed_data/
+# 2. Generated Keypoints & Data
+# These are created by running generate_keypoints.py
 keypoints/
+processed_data/
 outputs/
 logs/
-train_test_paths/
+*.log
 
-# System
-.DS_Store
+# 3. Model Checkpoints & Weights
+# These are generated during training (pth = PyTorch, p = Pickle)
+*.pth
+*.p
+*.weights
+*.h5
 
+# 4. Critical: Ensure these remain TRACKED
+# Make sure these folders are NOT ignored, as they contain project logic
+!label_maps/
+!train_test_paths/
+!models/
+
+# ==========================================
+# System & Development Environment
+# ==========================================
+
+# Python
 __pycache__/
-.ipynb_checkpoints/
+*.py[cod]
+*$py.class
 .venv/
 venv/
 env/
+ENV/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# System-specific
+.DS_Store
+Thumbs.db
+
+# Environment variables (security)
+.env
