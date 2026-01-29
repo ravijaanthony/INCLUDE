@@ -1,27 +1,21 @@
-# *.pth
-# processed_data/
-__pycache__/
-.ipynb_checkpoints/
-# *.npy
+# Logs
+*.log
+
+# Model weights
+*.pth
+
+# Generated data
+processed_data/
+keypoints/
+outputs/
+logs/
+train_test_paths/
+
+# System
 .DS_Store
 
-# __pycache__/
-# *.pth
-# *.npy
-# *.json
-# *.mp4
-# *.mov
-# *.avi
-# *.mkv
-
+__pycache__/
+.ipynb_checkpoints/
 .venv/
-# .ipynb_checkpoints/
-# .DS_Store
-
-# processed_data/
-# env/
-# venv/
-# keypoints/
-# outputs/
-# logs/
-# train_test_paths/
+venv/
+env/
