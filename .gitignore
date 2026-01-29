@@ -2,7 +2,7 @@
 # processed_data/
 __pycache__/
 .ipynb_checkpoints/
-*.npy
+# *.npy
 .DS_Store
 
 # __pycache__/
