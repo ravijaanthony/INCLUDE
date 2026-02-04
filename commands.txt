@@ -47,8 +47,8 @@ venv/bin/python generate_keypoints.py \
 #3. Train (same as before, but make sure you use the venv python):
 venv/bin/python runner.py \
   --dataset include50 \
-  --use_augs \
   --model transformer \
+  --transformer_size large \
   --data_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data \
   --batch_size 8
 
@@ -57,9 +57,10 @@ venv/bin/python runner.py \
 venv/bin/python runner.py \
   --dataset include50 \
   --model transformer \
-  --transformer_size small \
+  --transformer_size large \
   --data_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data \
-  --use_pretrained evaluate
+  --batch_size 1
+  #--use_pretrained evaluate
 
 #4. A demo on a single video:
 venv/bin/python inference.py \

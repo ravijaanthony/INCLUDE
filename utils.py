@@ -32,6 +32,8 @@ def get_experiment_name(args):
     if args.use_augs:
         exp_name += "augs_"
     exp_name += args.model
+    if args.model == "transformer":
+        exp_name += f"_{args.transformer_size}"
     return exp_name
 
 

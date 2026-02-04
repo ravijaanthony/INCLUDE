@@ -42,7 +42,7 @@ parser.add_argument(
     help="location to save trained model",
 )
 parser.add_argument(
-    "--epochs", default=50, type=int, help="number of epochs to train the model"
+    "--epochs", default=150, type=int, help="number of epochs to train the model"
 )
 parser.add_argument("--batch_size", default=128, type=int, help="batch size of data")
 parser.add_argument(

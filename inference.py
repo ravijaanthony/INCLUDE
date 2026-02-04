@@ -90,8 +90,14 @@ def _pretrained_name(dataset: str, model_type: str, transformer_size: str) -> st
     return name
 
 
-def load_model(dataset: str, model_type: str, transformer_size: str, checkpoint_path: str | None):
-    label_map = load_label_map(dataset)
+def load_model(
+    dataset: str,
+    model_type: str,
+    transformer_size: str,
+    checkpoint_path: str | None,
+    label_map_path: str | None = None,
+):
+    label_map = load_json(label_map_path) if label_map_path else load_label_map(dataset)
     n_classes = len(label_map)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
