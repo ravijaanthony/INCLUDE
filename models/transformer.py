@@ -53,7 +53,9 @@ class Transformer(nn.Module):
         x = self.l1(x)
         x = self.embedding(x)
         for layer in self.layers:
-            x = layer(x)[0]
+            out = layer(x)
+            # Transformers <5 returned tuples; Transformers 5 returns a Tensor.
+            x = out[0] if isinstance(out, (tuple, list)) else out
 
         x = torch.max(x, dim=1).values
         x = F.dropout(x, p=0.2)

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>INCLUDE50 Sign Demo</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #111827;
+        --accent: #22c55e;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+      }
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", "Segoe UI", sans-serif;
+        background: radial-gradient(circle at 20% 20%, #1f2937, #0b1020);
+        color: var(--text);
+      }
+      .wrap {
+        max-width: 960px;
+        margin: 32px auto;
+        padding: 24px;
+      }
+      .card {
+        background: var(--panel);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+      }
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+      h1 {
+        margin: 0 0 8px 0;
+        font-size: 28px;
+      }
+      p {
+        margin: 0 0 12px 0;
+        color: var(--muted);
+      }
+      button {
+        background: var(--accent);
+        color: #052e16;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 16px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:disabled {
+        background: #64748b;
+        cursor: not-allowed;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      video {
+        width: 100%;
+        border-radius: 12px;
+        background: #000;
+      }
+      .result {
+        padding: 12px;
+        border-radius: 12px;
+        background: #0b1220;
+        border: 1px solid #1f2937;
+        font-size: 16px;
+      }
+      .label {
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      input[type="file"] {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>INCLUDE50 Sign Recognition</h1>
+      <p>Record a short sign or upload a video to get a prediction.</p>
+      <div class="grid">
+        <div class="card">
+          <h2>Webcam</h2>
+          <video id="preview" autoplay muted></video>
+          <div class="row" style="margin-top: 10px">
+            <button id="startBtn">Start Recording</button>
+            <button id="stopBtn" disabled>Stop & Predict</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Upload</h2>
+          <input id="fileInput" type="file" accept="video/*" />
+          <div class="row" style="margin-top: 10px">
+            <button id="uploadBtn">Upload & Predict</button>
+          </div>
+          <div id="result" class="result" style="margin-top: 16px">
+            <div class="label">Waiting for input</div>
+            <div class="muted">Prediction will appear here.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const preview = document.getElementById("preview");
+      const startBtn = document.getElementById("startBtn");
+      const stopBtn = document.getElementById("stopBtn");
+      const fileInput = document.getElementById("fileInput");
+      const uploadBtn = document.getElementById("uploadBtn");
+      const resultBox = document.getElementById("result");
+      let mediaRecorder;
+      let chunks = [];
+
+      async function startCamera() {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        preview.srcObject = stream;
+        return stream;
+      }
+
+      function showResult(data) {
+        if (!data || data.error) {
+          resultBox.innerHTML = `<div class="label">Error</div><div class="muted">${data?.error || "Unknown error"}</div>`;
+          return;
+        }
+        resultBox.innerHTML = `
+          <div class="label">${data.label}</div>
+          <div class="muted">Confidence: ${(data.score * 100).toFixed(1)}%</div>
+          <div class="muted">Time: ${data.elapsed_ms}ms</div>
+        `;
+      }
+
+      async function sendBlob(blob, filename) {
+        const form = new FormData();
+        form.append("file", blob, filename);
+        const resp = await fetch("/predict", { method: "POST", body: form });
+        const data = await resp.json();
+        showResult(data);
+      }
+
+      startBtn.onclick = async () => {
+        const stream = await startCamera();
+        chunks = [];
+        mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+        mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+        mediaRecorder.start();
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+      };
+
+      stopBtn.onclick = async () => {
+        stopBtn.disabled = true;
+        startBtn.disabled = false;
+        mediaRecorder.stop();
+        mediaRecorder.onstop = async () => {
+          const blob = new Blob(chunks, { type: "video/webm" });
+          await sendBlob(blob, "recording.webm");
+        };
+      };
+
+      uploadBtn.onclick = async () => {
+        const file = fileInput.files[0];
+        if (!file) {
+          showResult({ error: "Please choose a video file first." });
+          return;
+        }
+        await sendBlob(file, file.name);
+      };
+    </script>
+  </body>
+</html>

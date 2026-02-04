@@ -161,7 +161,7 @@ if not os.path.isfile(pretrained_model_name):
     link = pretrained_model_links[pretrained_model_name]
     torch.hub.download_url_to_file(link, pretrained_model_name, progress=True)
 
-ckpt = torch.load(pretrained_model_name)
+ckpt = torch.load(pretrained_model_name, weights_only=False)
 model.load_state_dict(ckpt["model"])
 print("### Model loaded ###")
 

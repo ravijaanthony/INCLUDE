@@ -21,12 +21,13 @@ def OneOf(aug_a, aug_b):
 
 def plus7rotation(df):
     # +7 degree rotation
-    df_augmented = pd.DataFrame()
-    df_augmented["uid"] = df["uid"]
-    df_augmented["pose"] = ""
-    df_augmented["hand1"] = ""
-    df_augmented["hand2"] = ""
-    df_augmented["label"] = df["label"]
+    df_augmented = pd.DataFrame(
+        index=df.index,
+        columns=["uid", "pose", "hand1", "hand2", "label"],
+        dtype="object",
+    )
+    df_augmented["uid"] = df["uid"].astype("object")
+    df_augmented["label"] = df["label"].astype("object")
 
     theta = 7 * (np.pi / 180)
     c, s = np.cos(theta), np.sin(theta)
@@ -44,12 +45,13 @@ def plus7rotation(df):
 
 def minus7rotation(df):
     # -7 degree rotation
-    df_augmented = pd.DataFrame()
-    df_augmented["uid"] = df["uid"]
-    df_augmented["pose"] = ""
-    df_augmented["hand1"] = ""
-    df_augmented["hand2"] = ""
-    df_augmented["label"] = df["label"]
+    df_augmented = pd.DataFrame(
+        index=df.index,
+        columns=["uid", "pose", "hand1", "hand2", "label"],
+        dtype="object",
+    )
+    df_augmented["uid"] = df["uid"].astype("object")
+    df_augmented["label"] = df["label"].astype("object")
 
     theta = -7 * (np.pi / 180)
     c, s = np.cos(theta), np.sin(theta)

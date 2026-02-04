@@ -1,7 +1,13 @@
 torch
 transformers
 timm
-mediapipe
+mediapipe==0.10.14
 tqdm
 scikit-learn
 xgboost ## installs CPU version, check docs for GPU compatible version
+fastapi
+uvicorn
+pandas
+opencv-python
+python-multipart
+protobuf<5

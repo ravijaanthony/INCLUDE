@@ -126,7 +126,7 @@ def load_pretrained(args, n_classes, model, optimizer=None, scheduler=None):
     if args.model == "transformer":
         model = change_max_pos_embd(args, new_mpe_size=256, n_classes=n_classes)
 
-    ckpt = torch.load(load_modelName)
+    ckpt = torch.load(load_modelName, weights_only=False)
     model.load_state_dict(ckpt["model"])
     if args.use_pretrained == "resume_training":
         optimizer.load_state_dict(ckpt["optimizer"])
@@ -171,6 +171,18 @@ def fit(args):
             mode="val",
             max_frame_len=169,
         )
+        if len(train_dataset) == 0:
+            raise ValueError(
+                "No training samples found. "
+                "Check that keypoints were generated and that --data_dir points to "
+                f"{args.data_dir}/{args.dataset}_train_keypoints with JSON files."
+            )
+        if len(val_dataset) == 0:
+            raise ValueError(
+                "No validation samples found. "
+                "Check that keypoints were generated and that --data_dir points to "
+                f"{args.data_dir}/{args.dataset}_val_keypoints with JSON files."
+            )
 
     train_dataloader = data.DataLoader(
         train_dataset,
@@ -262,6 +274,12 @@ def evaluate(args):
             mode="test",
             max_frame_len=169,
         )
+        if len(dataset) == 0:
+            raise ValueError(
+                "No test samples found. "
+                "Check that keypoints were generated and that --data_dir points to "
+                f"{args.data_dir}/{args.dataset}_test_keypoints with JSON files."
+            )
 
     dataloader = data.DataLoader(
         dataset,

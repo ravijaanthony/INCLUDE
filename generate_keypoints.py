@@ -11,6 +11,11 @@ from joblib import Parallel, delayed
 import numpy as np
 import gc
 import warnings
+import hashlib
+from contextlib import contextmanager
+import joblib
+
+from video_preprocess import PreprocessConfig, apply_darken_then_brighten
 
 
 # MediaPipe FaceMesh landmark indices (subset) for eyebrows.
@@ -39,6 +44,24 @@ _EYEBROW_IDXS = [
     295,
     285,
 ]
+
+
+@contextmanager
+def tqdm_joblib(tqdm_object):
+    """Context manager to patch joblib so tqdm reports completed tasks (not just dispatched)."""
+
+    class TqdmBatchCompletionCallback(joblib.parallel.BatchCompletionCallBack):
+        def __call__(self, *args, **kwargs):
+            tqdm_object.update(n=self.batch_size)
+            return super().__call__(*args, **kwargs)
+
+    old_callback = joblib.parallel.BatchCompletionCallBack
+    joblib.parallel.BatchCompletionCallBack = TqdmBatchCompletionCallback
+    try:
+        yield tqdm_object
+    finally:
+        joblib.parallel.BatchCompletionCallBack = old_callback
+        tqdm_object.close()
 
 
 def _label_from_path(path: str) -> str:
@@ -198,7 +221,15 @@ def process_video(
     use_holistic: bool = False,
     face_mode: str = "none",
     write_placeholders: bool = False,
+    preprocess_config: PreprocessConfig | None = None,
+    export_darkened_dir: str | None = None,
 ):
+    if not hasattr(mp, "solutions"):
+        raise RuntimeError(
+            "mediapipe does not expose mp.solutions. "
+            "This usually means an incompatible mediapipe build. "
+            "Use Python 3.10/3.11 and reinstall mediapipe==0.10.20."
+        )
     if not os.path.isfile(path):
         warnings.warn(path + " file not found")
         return
@@ -217,6 +248,29 @@ def process_video(
     face_points_x, face_points_y = [], []
 
     n_frames = 0
+    rng = None
+    darken_factor = None
+    writer = None
+
+    if preprocess_config is not None:
+        seed = int(hashlib.md5(path.encode("utf-8")).hexdigest()[:8], 16)
+        rng = np.random.default_rng(seed)
+        if preprocess_config.apply_darken:
+            darken_factor = float(
+                rng.uniform(preprocess_config.darken_min, preprocess_config.darken_max)
+            )
+
+    if export_darkened_dir:
+        os.makedirs(export_darkened_dir, exist_ok=True)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        if not fps or fps <= 0:
+            fps = 25
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        out_path = os.path.join(export_darkened_dir, f"{uid}.mp4")
+        writer = cv2.VideoWriter(
+            out_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height)
+        )
 
     if use_holistic:
         holistic = mp.solutions.holistic.Holistic(
@@ -233,6 +287,16 @@ def process_video(
                 ret, image = cap.read()
                 if not ret:
                     break
+
+                if preprocess_config is not None:
+                    image = apply_darken_then_brighten(
+                        image,
+                        config=preprocess_config,
+                        rng=rng,
+                        darken_factor=darken_factor,
+                    )
+                if writer is not None:
+                    writer.write(image)
 
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 results = holistic.process(image)
@@ -275,6 +339,15 @@ def process_video(
                 ret, image = cap.read()
                 if not ret:
                     break
+                if preprocess_config is not None:
+                    image = apply_darken_then_brighten(
+                        image,
+                        config=preprocess_config,
+                        rng=rng,
+                        darken_factor=darken_factor,
+                    )
+                if writer is not None:
+                    writer.write(image)
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
                 hand_results = hands.process(image)
@@ -311,6 +384,8 @@ def process_video(
             pose.close()
 
     cap.release()
+    if writer is not None:
+        writer.release()
 
     if n_frames == 0 and not write_placeholders:
         warnings.warn(f"No frames decoded (n_frames=0). Skipping: {path}")
@@ -463,6 +538,8 @@ def save_keypoints(
     limit: int,
     no_parallel: bool,
     write_placeholders: bool,
+    preprocess_config: PreprocessConfig | None,
+    export_darkened_dir: str | None,
 ):
     save_dir = os.path.join(save_root, f"{dataset}_{mode}_keypoints")
     os.makedirs(save_dir, exist_ok=True)
@@ -483,19 +560,27 @@ def save_keypoints(
                 use_holistic=use_holistic,
                 face_mode=face_mode,
                 write_placeholders=write_placeholders,
+                preprocess_config=preprocess_config,
+                export_darkened_dir=export_darkened_dir,
             )
         return
 
-    Parallel(n_jobs=n_jobs, backend="multiprocessing")(
-        delayed(process_video)(
-            path,
-            save_dir,
-            use_holistic=use_holistic,
-            face_mode=face_mode,
-            write_placeholders=write_placeholders,
+    if not existing:
+        return
+
+    with tqdm_joblib(tqdm(total=len(existing), desc=f"processing {mode} videos")):
+        Parallel(n_jobs=n_jobs, backend="multiprocessing")(
+            delayed(process_video)(
+                path,
+                save_dir,
+                use_holistic=use_holistic,
+                face_mode=face_mode,
+                write_placeholders=write_placeholders,
+                preprocess_config=preprocess_config,
+                export_darkened_dir=export_darkened_dir,
+            )
+            for path in existing
         )
-        for path in tqdm(existing, desc=f"processing {mode} videos")
-    )
 
 
 def preflight_videos(video_paths: list[str], n: int = 10):
@@ -590,6 +675,52 @@ if __name__ == "__main__":
         action="store_true",
         help="write placeholder NaN JSONs even when videos can't be decoded",
     )
+    parser.add_argument(
+        "--apply_darken",
+        action="store_true",
+        help="apply darken then brighten preprocessing before MediaPipe",
+    )
+    parser.add_argument(
+        "--apply_brighten",
+        action="store_true",
+        help="apply brighten preprocessing without darkening",
+    )
+    parser.add_argument(
+        "--darken_min",
+        default=0.3,
+        type=float,
+        help="minimum brightness multiplier for darkening",
+    )
+    parser.add_argument(
+        "--darken_max",
+        default=0.8,
+        type=float,
+        help="maximum brightness multiplier for darkening",
+    )
+    parser.add_argument(
+        "--brighten_method",
+        default="clahe",
+        choices=["clahe", "gamma"],
+        help="brighten method used after darkening",
+    )
+    parser.add_argument(
+        "--brighten_gamma_min",
+        default=1.2,
+        type=float,
+        help="minimum gamma for gamma brighten",
+    )
+    parser.add_argument(
+        "--brighten_gamma_max",
+        default=1.8,
+        type=float,
+        help="maximum gamma for gamma brighten",
+    )
+    parser.add_argument(
+        "--export_darkened_dir",
+        default=None,
+        type=str,
+        help="optional directory to save darkened+brightened videos",
+    )
 
     parser.add_argument(
         "--preflight",
@@ -617,6 +748,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    preprocess_config = None
+    if args.apply_darken or args.apply_brighten:
+        preprocess_config = PreprocessConfig(
+            apply_darken=args.apply_darken,
+            apply_brighten=True,
+            darken_min=args.darken_min,
+            darken_max=args.darken_max,
+            brighten_method=args.brighten_method,
+            brighten_gamma_min=args.brighten_gamma_min,
+            brighten_gamma_max=args.brighten_gamma_max,
+        )
+
     if args.video is not None:
         single_dir = os.path.join(args.save_dir, f"{args.dataset}_single_keypoints")
         os.makedirs(single_dir, exist_ok=True)
@@ -626,6 +769,8 @@ if __name__ == "__main__":
             use_holistic=args.use_holistic,
             face_mode=args.face_mode,
             write_placeholders=args.write_placeholders,
+            preprocess_config=preprocess_config,
+            export_darkened_dir=args.export_darkened_dir,
         )
         print(f"Saved single-video keypoints to: {single_dir}")
         raise SystemExit(0)
@@ -662,6 +807,8 @@ if __name__ == "__main__":
             limit=args.limit,
             no_parallel=args.no_parallel,
             write_placeholders=args.write_placeholders,
+            preprocess_config=preprocess_config,
+            export_darkened_dir=args.export_darkened_dir,
         )
 
     if args.splits in ("test", "all"):
@@ -676,6 +823,8 @@ if __name__ == "__main__":
             limit=args.limit,
             no_parallel=args.no_parallel,
             write_placeholders=args.write_placeholders,
+            preprocess_config=preprocess_config,
+            export_darkened_dir=args.export_darkened_dir,
         )
 
     if args.splits in ("train", "all"):
@@ -690,4 +839,6 @@ if __name__ == "__main__":
             limit=args.limit,
             no_parallel=args.no_parallel,
             write_placeholders=args.write_placeholders,
+            preprocess_config=preprocess_config,
+            export_darkened_dir=args.export_darkened_dir,
         )

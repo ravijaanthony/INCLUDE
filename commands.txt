@@ -1,52 +1,72 @@
-#Then recreate it on any machine with:
-python -m venv venv
+#Then recreate it on any machine with (Python 3.10/3.11 recommended for mediapipe):
+python3.11 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
 #What to run now (recommended path)
+#Note: run these from /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE
 
 #1. Sanity-check that videos are readable (this should now show 10/10):
 venv/bin/python generate_keypoints.py \
 --include_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA \
- --save_dir ./processed_data -\
- -dataset include50 \
- --scan \
-  --preflight \
- --preflight_n 10
+--save_dir ./processed_data \
+--dataset include50 \
+--scan \
+--preflight \
+--preflight_n 10
 
 #2. Generate keypoints using Holistic (pose + hands + face) and save eyebrow landmarks:
 rm -rf processed_data/include50_*_keypoints
-venv/bin/python generate_keypoints.py \
+venv/bin/python darken_dataset.py \
     --include_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA \
-    --save_dir ./processed_data \
+    --output_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA_DARK \
+    --darken_min 0.3 \
+    --darken_max 0.8
+# (Shows a tqdm progress bar: "Darkening videos")
+
+#2b. Combine original + dark datasets into one mixed folder:
+venv/bin/python combine_datasets.py \
+    --src_a /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA \
+    --src_b /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA_DARK \
+    --output_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA_MIXED
+
+venv/bin/python generate_keypoints.py \
+    --include_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA_MIXED \
+    --save_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data \
     --dataset include50 \
     --scan \
     --use_holistic \
     --face_mode full \
+    --apply_brighten \
+    --brighten_method clahe \
     --splits all \
     --split_seed 0
+# (Shows a tqdm progress bar per split: "processing train/val/test videos")
+# Tip: add `--no_parallel` for simpler debugging, or lower `--jobs` if your machine struggles.
 
 #3. Train (same as before, but make sure you use the venv python):
 venv/bin/python runner.py \
---dataset include50 \
---use_augs \
---model transformer \
---data_dir ./processed_data \
---batch_size 8
-
-
-# For INCLUDE dataset (263 classes)
-venv/bin/python runner.py \
-  --dataset include \
+  --dataset include50 \
+  --use_augs \
   --model transformer \
-  --transformer_size large \
-  --data_dir ./processed_data \
-  --use_pretrained evaluate
+  --data_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data \
+  --batch_size 8
 
-# For INCLUDE50 dataset (50 classes)
+# Evaluate on the test split
+# Confirms generalization on unseen data.
 venv/bin/python runner.py \
   --dataset include50 \
   --model transformer \
   --transformer_size small \
-  --data_dir ./processed_data \
+  --data_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data \
   --use_pretrained evaluate
+
+#4. A demo on a single video:
+venv/bin/python inference.py \
+  --video /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA_DARK/Boy/MVI_3814.MOV \
+  --dataset include50 \
+  --model transformer \
+  --transformer_size small
+
+#5. Run the UI (FastAPI):
+venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8000
