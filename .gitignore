@@ -1,36 +1,43 @@
-# 1. Dataset & Large Video Files
-# The INCLUDE dataset consists of thousands of videos (~6.85 GiB)
-# Do NOT upload raw video files to GitHub.
+# ==========================================
+# Data, Media, and Generated Artifacts
+# ==========================================
+
+# Raw videos / media
 *.mp4
+*.MP4
+*.mov
 *.MOV
 *.avi
+*.AVI
+*.mkv
+*.MKV
+*.webm
+*.WEBM
 
-# 2. Generated Keypoints & Data
-# These are created by running generate_keypoints.py
-keypoints/
+# Generated keypoints / intermediate outputs
 processed_data/
+keypoints/
+keypoints_dir/
 outputs/
 logs/
-*.log
+tmp/
+temp/
 
-# 3. Model Checkpoints & Weights
-# These are generated during training (pth = PyTorch, p = Pickle)
+# Training outputs and model weights
 *.pth
+*.pt
 *.p
+*.ckpt
 *.weights
 *.h5
-
-# 4. Critical: Ensure these remain TRACKED
-# Make sure these folders are NOT ignored, as they contain project logic
-!label_maps/
-!train_test_paths/
-!models/
+*.onnx
+*.tflite
+*.engine
+*.log
 
 # ==========================================
-# System & Development Environment
-# ==========================================
-
 # Python
+# ==========================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -38,13 +45,37 @@ __pycache__/
 venv/
 env/
 ENV/
-
-# Jupyter Notebook
 .ipynb_checkpoints/
+.mypy_cache/
+.pytest_cache/
 
-# System-specific
+# ==========================================
+# Frontend (React / Vite)
+# ==========================================
+ui/node_modules/
+ui/dist/
+ui/.vite/
+ui/.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local backup folder created during migration
+ui_legacy/
+
+# ==========================================
+# Environment / IDE / OS
+# ==========================================
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+*.iml
 .DS_Store
 Thumbs.db
 
-# Environment variables (security)
-.env
+# Keep core source tracked
+!label_maps/
+!train_test_paths/
+!models/

@@ -162,14 +162,14 @@ def fit(args):
             use_augs=args.use_augs,
             label_map=label_map,
             mode="train",
-            max_frame_len=169,
+            max_frame_len=args.max_frame_len,
         )
         val_dataset = KeypointsDataset(
             keypoints_dir=os.path.join(args.data_dir, f"{args.dataset}_val_keypoints"),
             use_augs=False,
             label_map=label_map,
             mode="val",
-            max_frame_len=169,
+            max_frame_len=args.max_frame_len,
         )
         if len(train_dataset) == 0:
             raise ValueError(
@@ -199,9 +199,7 @@ def fit(args):
         pin_memory=True,
     )
 
-    n_classes = 50
-    if args.dataset == "include":
-        n_classes = 263
+    n_classes = len(label_map)
 
     if args.model == "lstm":
         config = LstmConfig()
@@ -255,30 +253,30 @@ def fit(args):
 
 def evaluate(args):
     label_map = load_label_map(args.dataset)
-    n_classes = 50
-    if args.dataset == "include":
-        n_classes = 263
+    n_classes = len(label_map)
+    eval_split = getattr(args, "eval_split", "test")
+    split_folder = f"{args.dataset}_{eval_split}"
 
     if args.use_cnn:
         dataset = FeaturesDatset(
-            features_dir=os.path.join(args.data_dir, f"{args.dataset}_test_features"),
+            features_dir=os.path.join(args.data_dir, f"{split_folder}_features"),
             label_map=label_map,
-            mode="test",
+            mode=eval_split,
         )
 
     else:
         dataset = KeypointsDataset(
-            keypoints_dir=os.path.join(args.data_dir, f"{args.dataset}_test_keypoints"),
+            keypoints_dir=os.path.join(args.data_dir, f"{split_folder}_keypoints"),
             use_augs=False,
             label_map=label_map,
-            mode="test",
-            max_frame_len=169,
+            mode=eval_split,
+            max_frame_len=args.max_frame_len,
         )
         if len(dataset) == 0:
             raise ValueError(
-                "No test samples found. "
+                f"No {eval_split} samples found. "
                 "Check that keypoints were generated and that --data_dir points to "
-                f"{args.data_dir}/{args.dataset}_test_keypoints with JSON files."
+                f"{args.data_dir}/{split_folder}_keypoints with JSON files."
             )
 
     dataloader = data.DataLoader(
@@ -314,5 +312,5 @@ def evaluate(args):
         print("### Model loaded ###")
 
     test_loss, test_acc = validate(dataloader, model, device)
-    print("Evaluation Results:")
+    print(f"Evaluation Results ({eval_split} split):")
     print(f"Loss: {test_loss}, Accuracy: {test_acc}")

@@ -55,9 +55,21 @@ parser.add_argument(
     "--transformer_size", default="small", type=str, help="options: small, large"
 )
 parser.add_argument(
+    "--max_frame_len",
+    default=169,
+    type=int,
+    help="sequence length for train/eval keypoint padding",
+)
+parser.add_argument(
     "--use_pretrained",
     default=None,
     help="use pretrained model. options: evaluate, resume_training",
+)
+parser.add_argument(
+    "--eval_split",
+    default="test",
+    choices=["train", "val", "test"],
+    help="split to evaluate when running evaluate",
 )
 args = parser.parse_args()
 

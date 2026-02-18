@@ -49,6 +49,7 @@ venv/bin/python runner.py \
   --dataset include50 \
   --model transformer \
   --transformer_size large \
+  --max_frame_len 169 \
   --data_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data \
   --batch_size 8
 
@@ -58,16 +59,44 @@ venv/bin/python runner.py \
   --dataset include50 \
   --model transformer \
   --transformer_size large \
+  --max_frame_len 169 \
   --data_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data \
   --batch_size 1
   #--use_pretrained evaluate
+
+# Optional: evaluate on training split for sanity-check (should be much higher than chance):
+venv/bin/python runner.py \
+  --dataset include50 \
+  --model transformer \
+  --transformer_size large \
+  --max_frame_len 169 \
+  --data_dir /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/processed_data \
+  --batch_size 1 \
+  --eval_split train
 
 #4. A demo on a single video:
 venv/bin/python inference.py \
   --video /home/ravijaanthony/Documents/dev/IIT/FYP/Code/DATA_DARK/Boy/MVI_3814.MOV \
   --dataset include50 \
   --model transformer \
-  --transformer_size small
+  --transformer_size large \
+  --checkpoint /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/transformer_large.pth \
+  --max_frame_len 169
 
-#5. Run the UI (FastAPI):
+#5. Run the backend (FastAPI):
+MODEL_DATASET=include50 \
+MODEL_TYPE=transformer \
+MODEL_TRANSFORMER_SIZE=large \
+MODEL_MAX_FRAME_LEN=169 \
+MODEL_CHECKPOINT=/home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/transformer_large.pth \
 venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8000
+
+#6. Run the React UI (Vite) in another terminal:
+cd /home/ravijaanthony/Documents/dev/IIT/FYP/Code/INCLUDE/ui
+npm install
+npm run dev
+# (UI runs on http://localhost:5173 and proxies /predict to FastAPI)
+
+# Optional: build the UI and serve it from FastAPI:
+npm run build
+# (Restart the backend, then open http://localhost:8000)

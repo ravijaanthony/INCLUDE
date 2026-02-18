@@ -17,7 +17,7 @@ from video_preprocess import PreprocessConfig
 
 
 class KeypointsDataset(data.Dataset):
-    def __init__(self, keypoints_dir, max_frame_len=200, frame_length=1080, frame_width=1920):
+    def __init__(self, keypoints_dir, max_frame_len=169, frame_length=1080, frame_width=1920):
         self.files = sorted(
             [f for f in os.listdir(keypoints_dir) if f.endswith(".json")]
         )
@@ -137,6 +137,7 @@ def predict_video(
     label_map: dict,
     preprocess_config: PreprocessConfig,
     *,
+    max_frame_len: int = 169,
     use_holistic: bool = True,
     face_mode: str = "full",
 ):
@@ -149,7 +150,7 @@ def predict_video(
             face_mode=face_mode,
             preprocess_config=preprocess_config,
         )
-        dataset_obj = KeypointsDataset(keypoints_dir=temp_dir, max_frame_len=200)
+        dataset_obj = KeypointsDataset(keypoints_dir=temp_dir, max_frame_len=max_frame_len)
         dataloader = data.DataLoader(dataset_obj, batch_size=1, shuffle=False)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -183,6 +184,12 @@ if __name__ == "__main__":
     parser.add_argument("--brighten_method", default="clahe", choices=["clahe", "gamma"])
     parser.add_argument("--brighten_gamma_min", default=1.2, type=float)
     parser.add_argument("--brighten_gamma_max", default=1.8, type=float)
+    parser.add_argument(
+        "--max_frame_len",
+        default=169,
+        type=int,
+        help="sequence length used during training (must match inference)",
+    )
     args = parser.parse_args()
 
     preprocess_config = PreprocessConfig(
@@ -202,6 +209,11 @@ if __name__ == "__main__":
         checkpoint_path=args.checkpoint,
     )
     result = predict_video(
-        args.video, args.dataset, model, label_map, preprocess_config=preprocess_config
+        args.video,
+        args.dataset,
+        model,
+        label_map,
+        preprocess_config=preprocess_config,
+        max_frame_len=args.max_frame_len,
     )
     print(result)
